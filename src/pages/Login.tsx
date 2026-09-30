@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Card, Form, Input, Button, Typography, message, Tabs } from 'antd';
 import { UserOutlined, LockOutlined, MailOutlined } from '@ant-design/icons';
@@ -10,9 +10,12 @@ export default function Login() {
   const [loading, setLoading] = useState(false);
   const [form] = Form.useForm();
 
-  if (isAuthenticated) {
-    navigate('/', { replace: true });
-  }
+  // Redirect an already-authenticated visitor away from /login. This must run in
+  // an effect: calling navigate() during render triggers a React warning and can
+  // loop between /login and / when the stored token turns out to be stale.
+  useEffect(() => {
+    if (isAuthenticated) navigate('/', { replace: true });
+  }, [isAuthenticated, navigate]);
 
   const handleLogin = async (values: { email: string; password: string }) => {
     setLoading(true);
