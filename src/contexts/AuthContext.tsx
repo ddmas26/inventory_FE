@@ -16,6 +16,8 @@ interface AuthContextType {
   user: UserResponse | null;
   token: string | null;
   isAuthenticated: boolean;
+  /** Name of the company (tenant) the signed-in user belongs to. */
+  companyName: string | null;
   permissions: string[];
   hasPermission: (code: string) => boolean;
   login: (data: LoginRequest) => Promise<void>;
@@ -38,6 +40,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const stored = localStorage.getItem(PERMS_KEY);
     return stored ? JSON.parse(stored) : [];
   });
+  const [companyName, setCompanyName] = useState<string | null>(null);
 
   /** Drops the local session. The API client has already revoked the tokens. */
   const clearAuth = useCallback(() => {
@@ -45,6 +48,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setToken(null);
     setUser(null);
     setPermissions([]);
+    setCompanyName(null);
   }, []);
 
   // On mount, if we have a token but no permissions, fetch claims
@@ -53,6 +57,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       authApi.me()
         .then((claims) => {
           setPermissions(claims.permissions);
+          setCompanyName(claims.company_name ?? null);
           localStorage.setItem(PERMS_KEY, JSON.stringify(claims.permissions));
         })
         .catch(() => {
@@ -72,6 +77,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       const claims = await authApi.me();
       setPermissions(claims.permissions);
+      setCompanyName(claims.company_name ?? null);
       localStorage.setItem(PERMS_KEY, JSON.stringify(claims.permissions));
     } catch {
       // Non-critical — permissions will be empty
@@ -117,7 +123,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   );
 
   return (
-    <AuthContext.Provider value={{ user, token, isAuthenticated: !!token, permissions, hasPermission, login, register, logout }}>
+    <AuthContext.Provider value={{ user, token, isAuthenticated: !!token, companyName, permissions, hasPermission, login, register, logout }}>
       {children}
     </AuthContext.Provider>
   );

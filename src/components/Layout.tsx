@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { Layout, Menu, Typography, Dropdown, Space, Avatar } from 'antd';
+import { Layout, Menu, Typography, Dropdown, Space, Avatar, Tag } from 'antd';
 import {
   DashboardOutlined,
   ShoppingOutlined,
@@ -35,7 +35,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   const [collapsed, setCollapsed] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
-  const { user, logout, hasPermission } = useAuth();
+  const { user, logout, hasPermission, companyName } = useAuth();
 
   const mainMenuItems = useMemo(
     () => allMainItems.filter((m) => hasPermission(m.perm)),
@@ -79,24 +79,27 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           display: 'flex', alignItems: 'center', justifyContent: 'space-between',
         }}>
           <span style={{ fontSize: 18, fontWeight: 600 }}>{currentLabel}</span>
-          <Dropdown
-            menu={{
-              items: [
-                { key: 'profile', label: user?.name, disabled: true },
-                { type: 'divider' },
-                {
-                  key: 'logout', label: 'Logout', icon: <LogoutOutlined />,
-                  danger: true,
-                  onClick: async () => { await logout(); navigate('/login'); },
-                },
-              ],
-            }}
-          >
-            <Space style={{ cursor: 'pointer' }}>
-              <Avatar icon={<UserOutlined />} />
-              <span>{user?.name}</span>
-            </Space>
-          </Dropdown>
+          <Space size={16} align="center">
+            {companyName && <Tag color="blue">{companyName}</Tag>}
+            <Dropdown
+              menu={{
+                items: [
+                  { key: 'profile', label: companyName ? `${user?.name} · ${companyName}` : user?.name, disabled: true },
+                  { type: 'divider' },
+                  {
+                    key: 'logout', label: 'Logout', icon: <LogoutOutlined />,
+                    danger: true,
+                    onClick: async () => { await logout(); navigate('/login'); },
+                  },
+                ],
+              }}
+            >
+              <Space style={{ cursor: 'pointer' }}>
+                <Avatar icon={<UserOutlined />} />
+                <span>{user?.name}</span>
+              </Space>
+            </Dropdown>
+          </Space>
         </Header>
         <Content style={{ margin: 24 }}>
           {children}

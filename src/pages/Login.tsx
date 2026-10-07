@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Card, Form, Input, Button, Typography, message, Tabs } from 'antd';
-import { UserOutlined, LockOutlined, MailOutlined } from '@ant-design/icons';
+import { UserOutlined, LockOutlined, MailOutlined, ShopOutlined } from '@ant-design/icons';
 import { useAuth } from '../contexts/AuthContext';
 
 export default function Login() {
@@ -30,11 +30,11 @@ export default function Login() {
     }
   };
 
-  const handleRegister = async (values: { name: string; email: string; password: string }) => {
+  const handleRegister = async (values: { company_name: string; name: string; email: string; password: string }) => {
     setLoading(true);
     try {
       await register(values);
-      message.success('Registration successful! You can now log in.');
+      message.success('Company registered! You can now log in.');
       form.resetFields();
     } catch (err: any) {
       message.error(err.message || 'Registration failed');
@@ -80,7 +80,14 @@ export default function Login() {
               label: 'Register',
               children: (
                 <Form onFinish={handleRegister} layout="vertical" size="large">
-                  <Form.Item name="name" label="Name" rules={[{ required: true, min: 2 }]}>
+                  <Form.Item
+                    name="company_name"
+                    label="Company name"
+                    rules={[{ required: true, min: 2 }]}
+                  >
+                    <Input prefix={<ShopOutlined />} placeholder="Acme Inc." />
+                  </Form.Item>
+                  <Form.Item name="name" label="Your name" rules={[{ required: true, min: 2 }]}>
                     <Input prefix={<UserOutlined />} placeholder="Full name" />
                   </Form.Item>
                   <Form.Item name="email" label="Email" rules={[{ required: true, type: 'email' }]}>

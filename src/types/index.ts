@@ -14,6 +14,7 @@ export interface ProductImageInput {
 
 export interface Product {
   id: string;
+  company_id: string;
   name: string;
   description: string;
   /** URL of the primary image (falls back to the first image). */
@@ -29,6 +30,7 @@ export interface Product {
 
 export interface Inventory {
   id: string;
+  company_id: string;
   name: string;
   address: string;
   latitude: string;
@@ -40,6 +42,7 @@ export interface Inventory {
 
 export interface Stock {
   id: string;
+  company_id: string;
   inventory_id: string;
   product_id: string;
   product_name?: string;
@@ -102,6 +105,7 @@ export interface LoginRequest {
 }
 
 export interface RegisterRequest {
+  company_name: string;
   name: string;
   email: string;
   password: string;
@@ -117,6 +121,7 @@ export interface LoginResponse {
 
 export interface UserResponse {
   id: string;
+  company_id: string;
   name: string;
   email: string;
   is_active: boolean;
@@ -127,6 +132,7 @@ export interface UserResponse {
 
 export interface UserDto {
   id: string;
+  company_id: string;
   name: string;
   email: string;
   is_active: boolean;
@@ -167,6 +173,8 @@ export interface RoleWithPermissionsResponse {
 
 export interface ClaimsResponse {
   user_id: string;
+  company_id: string;
+  company_name: string;
   name: string;
   email: string;
   role: string;
