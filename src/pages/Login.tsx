@@ -1,14 +1,13 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { Card, Form, Input, Button, Typography, message, Tabs } from 'antd';
-import { UserOutlined, LockOutlined, MailOutlined, ShopOutlined } from '@ant-design/icons';
+import { Link, useNavigate } from 'react-router-dom';
+import { Card, Form, Input, Button, Typography, message, Divider } from 'antd';
+import { LockOutlined, MailOutlined } from '@ant-design/icons';
 import { useAuth } from '../contexts/AuthContext';
 
 export default function Login() {
-  const { login, register, isAuthenticated } = useAuth();
+  const { login, isAuthenticated } = useAuth();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
-  const [form] = Form.useForm();
 
   // Redirect an already-authenticated visitor away from /login. This must run in
   // an effect: calling navigate() during render triggers a React warning and can
@@ -23,21 +22,8 @@ export default function Login() {
       await login(values);
       message.success('Login successful');
       navigate('/', { replace: true });
-    } catch (err: any) {
-      message.error(err.message || 'Login failed');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleRegister = async (values: { company_name: string; name: string; email: string; password: string }) => {
-    setLoading(true);
-    try {
-      await register(values);
-      message.success('Company registered! You can now log in.');
-      form.resetFields();
-    } catch (err: any) {
-      message.error(err.message || 'Registration failed');
+    } catch (err) {
+      message.error((err as Error).message || 'Login failed');
     } finally {
       setLoading(false);
     }
@@ -50,60 +36,28 @@ export default function Login() {
       alignItems: 'center',
       minHeight: '100vh',
       background: '#f0f2f5',
+      padding: 24,
     }}>
       <Card style={{ width: 420, boxShadow: '0 2px 8px rgba(0,0,0,0.1)' }}>
         <Typography.Title level={3} style={{ textAlign: 'center', marginBottom: 24 }}>
           Inventory Management
         </Typography.Title>
-        <Tabs
-          centered
-          items={[
-            {
-              key: 'login',
-              label: 'Login',
-              children: (
-                <Form onFinish={handleLogin} layout="vertical" size="large">
-                  <Form.Item name="email" label="Email" rules={[{ required: true, type: 'email' }]}>
-                    <Input prefix={<MailOutlined />} placeholder="your@email.com" />
-                  </Form.Item>
-                  <Form.Item name="password" label="Password" rules={[{ required: true }]}>
-                    <Input.Password prefix={<LockOutlined />} placeholder="Password" />
-                  </Form.Item>
-                  <Button type="primary" htmlType="submit" block loading={loading}>
-                    Login
-                  </Button>
-                </Form>
-              ),
-            },
-            {
-              key: 'register',
-              label: 'Register',
-              children: (
-                <Form onFinish={handleRegister} layout="vertical" size="large">
-                  <Form.Item
-                    name="company_name"
-                    label="Company name"
-                    rules={[{ required: true, min: 2 }]}
-                  >
-                    <Input prefix={<ShopOutlined />} placeholder="Acme Inc." />
-                  </Form.Item>
-                  <Form.Item name="name" label="Your name" rules={[{ required: true, min: 2 }]}>
-                    <Input prefix={<UserOutlined />} placeholder="Full name" />
-                  </Form.Item>
-                  <Form.Item name="email" label="Email" rules={[{ required: true, type: 'email' }]}>
-                    <Input prefix={<MailOutlined />} placeholder="your@email.com" />
-                  </Form.Item>
-                  <Form.Item name="password" label="Password" rules={[{ required: true, min: 8 }]}>
-                    <Input.Password prefix={<LockOutlined />} placeholder="Min. 8 characters" />
-                  </Form.Item>
-                  <Button type="primary" htmlType="submit" block loading={loading}>
-                    Register
-                  </Button>
-                </Form>
-              ),
-            },
-          ]}
-        />
+        <Form onFinish={handleLogin} layout="vertical" size="large">
+          <Form.Item name="email" label="Email" rules={[{ required: true, type: 'email' }]}>
+            <Input prefix={<MailOutlined />} placeholder="your@email.com" />
+          </Form.Item>
+          <Form.Item name="password" label="Password" rules={[{ required: true }]}>
+            <Input.Password prefix={<LockOutlined />} placeholder="Password" />
+          </Form.Item>
+          <Button type="primary" htmlType="submit" block loading={loading}>
+            Login
+          </Button>
+        </Form>
+        <Divider plain>New here?</Divider>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8, textAlign: 'center' }}>
+          <Link to="/register">Register your company</Link>
+          <Link to="/platform/login">Platform admin login</Link>
+        </div>
       </Card>
     </div>
   );

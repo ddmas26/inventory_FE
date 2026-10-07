@@ -31,7 +31,7 @@ export default function Users() {
   };
 
   const createMutation = useMutation({
-    mutationFn: (data: { name: string; email: string; password: string; role_id?: string | null }) =>
+    mutationFn: (data: { name: string; email: string; phone: string; password: string; role_id?: string | null }) =>
       usersApi.create(data),
     onSuccess: () => {
       invalidateUserRelated();
@@ -43,7 +43,7 @@ export default function Users() {
   });
 
   const updateMutation = useMutation({
-    mutationFn: ({ id, ...data }: { id: string; name: string; email: string; role_id?: string | null }) =>
+    mutationFn: ({ id, ...data }: { id: string; name: string; email: string; phone: string; role_id?: string | null }) =>
       usersApi.update(id, data),
     onSuccess: () => {
       invalidateUserRelated();
@@ -92,6 +92,7 @@ export default function Users() {
     form.setFieldsValue({
       name: user.name,
       email: user.email,
+      phone: user.phone,
       role_id: user.role_id,
     });
     setModalOpen(true);
@@ -116,8 +117,19 @@ export default function Users() {
   const getRoleColor = (name: string) => roleColors[name.length % roleColors.length];
 
   const columns = [
-    { title: 'Name', dataIndex: 'name', key: 'name' },
+    {
+      title: 'Name',
+      dataIndex: 'name',
+      key: 'name',
+      render: (name: string, record: UserDto) => (
+        <Space>
+          <span>{name}</span>
+          {record.is_root && <Tag color="geekblue">Root</Tag>}
+        </Space>
+      ),
+    },
     { title: 'Email', dataIndex: 'email', key: 'email' },
+    { title: 'Phone', dataIndex: 'phone', key: 'phone' },
     {
       title: 'Active',
       dataIndex: 'is_active',
@@ -205,6 +217,9 @@ export default function Users() {
           <Form.Item name="email" label="Email" rules={[{ required: true, type: 'email' }]}>
             <Input />
           </Form.Item>
+          <Form.Item name="phone" label="Phone" rules={[{ required: true }]}>
+            <Input />
+          </Form.Item>
           <Form.Item name="password" label="Password" rules={[{ required: true, min: 8 }]}>
             <Input.Password />
           </Form.Item>
@@ -230,6 +245,9 @@ export default function Users() {
             <Input />
           </Form.Item>
           <Form.Item name="email" label="Email" rules={[{ required: true, type: 'email' }]}>
+            <Input />
+          </Form.Item>
+          <Form.Item name="phone" label="Phone" rules={[{ required: true }]}>
             <Input />
           </Form.Item>
           <Form.Item name="role_id" label="Role">

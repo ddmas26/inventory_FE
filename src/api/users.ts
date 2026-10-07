@@ -8,10 +8,10 @@ export const usersApi = {
   getById: (id: string) =>
     get<UserDto>(`/users/${id}`),
 
-  create: (data: { name: string; email: string; password: string; role_id?: string | null }) =>
+  create: (data: { name: string; email: string; phone: string; password: string; role_id?: string | null }) =>
     post<UserDto>('/users', data),
 
-  update: (id: string, data: { name: string; email: string; role_id?: string | null }) =>
+  update: (id: string, data: { name: string; email: string; phone: string; role_id?: string | null }) =>
     put<UserDto>(`/users/${id}`, data),
 
   delete: (id: string) =>

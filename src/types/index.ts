@@ -106,8 +106,10 @@ export interface LoginRequest {
 
 export interface RegisterRequest {
   company_name: string;
+  company_phone: string;
   name: string;
   email: string;
+  phone: string;
   password: string;
 }
 
@@ -124,6 +126,8 @@ export interface UserResponse {
   company_id: string;
   name: string;
   email: string;
+  phone: string;
+  is_root: boolean;
   is_active: boolean;
   role_id: string | null;
   created_at: string;
@@ -135,6 +139,8 @@ export interface UserDto {
   company_id: string;
   name: string;
   email: string;
+  phone: string;
+  is_root: boolean;
   is_active: boolean;
   role_id: string | null;
   created_at: string;
@@ -175,10 +181,65 @@ export interface ClaimsResponse {
   user_id: string;
   company_id: string;
   company_name: string;
+  company_status: string;
+  is_root: boolean;
   name: string;
   email: string;
   role: string;
   permissions: string[];
+}
+
+// --- Platform (operator) types ---
+
+export type CompanyStatus = 'pending' | 'approved' | 'rejected' | 'suspended';
+
+export interface CompanyDto {
+  id: string;
+  name: string;
+  slug: string;
+  phone: string;
+  status: CompanyStatus;
+  approved_at?: string;
+  created_at: string;
+  updated_at: string;
+  root_user_id?: string;
+  root_user_name?: string;
+  root_user_email?: string;
+  root_user_phone?: string;
+}
+
+export interface PlatformCounts {
+  total: number;
+  pending: number;
+  approved: number;
+  rejected: number;
+  suspended: number;
+}
+
+export interface PlatformDashboardData {
+  counts: PlatformCounts;
+  pending: CompanyDto[];
+}
+
+export interface PlatformUserResponse {
+  id: string;
+  name: string;
+  email: string;
+  phone: string;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface PlatformLoginRequest {
+  email: string;
+  password: string;
+}
+
+export interface PlatformLoginResponse {
+  token: string;
+  expires_in: number;
+  user: PlatformUserResponse;
 }
 
 export interface CreateRoleRequest {

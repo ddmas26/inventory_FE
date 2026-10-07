@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, useCallback, useEffect, type ReactNode } from 'react';
-import type { LoginRequest, RegisterRequest, UserResponse, LoginResponse } from '../types';
+import type { LoginRequest, RegisterRequest, UserResponse, LoginResponse, ClaimsResponse } from '../types';
 import { authApi } from '../api/auth';
 import {
   TOKEN_KEY,
@@ -18,8 +18,14 @@ interface AuthContextType {
   isAuthenticated: boolean;
   /** Name of the company (tenant) the signed-in user belongs to. */
   companyName: string | null;
+  /** Lifecycle status of the user's company: pending | approved | rejected | suspended. */
+  companyStatus: string | null;
+  /** True when the user is the company owner (root). */
+  isRoot: boolean;
   permissions: string[];
   hasPermission: (code: string) => boolean;
+  /** Re-fetches session claims (e.g. to pick up a company approval). */
+  refreshClaims: () => Promise<void>;
   login: (data: LoginRequest) => Promise<void>;
   register: (data: RegisterRequest) => Promise<void>;
   /** Revokes the session in Redis (best effort) and clears local state. */
@@ -41,6 +47,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return stored ? JSON.parse(stored) : [];
   });
   const [companyName, setCompanyName] = useState<string | null>(null);
+  const [companyStatus, setCompanyStatus] = useState<string | null>(null);
+  const [isRoot, setIsRoot] = useState(false);
 
   /** Drops the local session. The API client has already revoked the tokens. */
   const clearAuth = useCallback(() => {
@@ -49,17 +57,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(null);
     setPermissions([]);
     setCompanyName(null);
+    setCompanyStatus(null);
+    setIsRoot(false);
+  }, []);
+
+  /** Applies fresh session claims to local state. */
+  const applyClaims = useCallback((claims: ClaimsResponse) => {
+    setPermissions(claims.permissions);
+    setCompanyName(claims.company_name ?? null);
+    setCompanyStatus(claims.company_status ?? null);
+    setIsRoot(!!claims.is_root);
+    localStorage.setItem(PERMS_KEY, JSON.stringify(claims.permissions));
   }, []);
 
   // On mount, if we have a token but no permissions, fetch claims
   useEffect(() => {
     if (token && permissions.length === 0) {
       authApi.me()
-        .then((claims) => {
-          setPermissions(claims.permissions);
-          setCompanyName(claims.company_name ?? null);
-          localStorage.setItem(PERMS_KEY, JSON.stringify(claims.permissions));
-        })
+        .then(applyClaims)
         .catch(() => {
           // Token invalid and could not be refreshed — clear the local session.
           clearAuth();
@@ -76,13 +91,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // Fetch claims after login
     try {
       const claims = await authApi.me();
-      setPermissions(claims.permissions);
-      setCompanyName(claims.company_name ?? null);
-      localStorage.setItem(PERMS_KEY, JSON.stringify(claims.permissions));
+      applyClaims(claims);
     } catch {
       // Non-critical — permissions will be empty
     }
-  }, []);
+  }, [applyClaims]);
 
   const register = useCallback(async (data: RegisterRequest) => {
     await authApi.register(data);
@@ -122,8 +135,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     [permissions],
   );
 
+  const refreshClaims = useCallback(async () => {
+    const claims = await authApi.me();
+    applyClaims(claims);
+  }, [applyClaims]);
+
   return (
-    <AuthContext.Provider value={{ user, token, isAuthenticated: !!token, companyName, permissions, hasPermission, login, register, logout }}>
+    <AuthContext.Provider value={{ user, token, isAuthenticated: !!token, companyName, companyStatus, isRoot, permissions, hasPermission, refreshClaims, login, register, logout }}>
       {children}
     </AuthContext.Provider>
   );
