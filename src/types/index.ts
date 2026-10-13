@@ -16,6 +16,10 @@ export interface Product {
   id: string;
   company_id: string;
   name: string;
+  /** Stock keeping unit — unique within the company. */
+  sku: string;
+  /** Optional barcode (EAN/UPC); unique within the company when set. */
+  barcode?: string;
   description: string;
   /** URL of the primary image (falls back to the first image). */
   image_url?: string;

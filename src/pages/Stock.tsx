@@ -3,7 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   Card, Table, Select, Button, Modal, Form, InputNumber, Space, message, Tabs, Row, Col, Statistic, Input, Image,
 } from 'antd';
-import { ReloadOutlined, SearchOutlined, ArrowUpOutlined, ArrowDownOutlined } from '@ant-design/icons';
+import { ReloadOutlined, SearchOutlined, ArrowUpOutlined, ArrowDownOutlined, BarcodeOutlined } from '@ant-design/icons';
 import { productsApi } from '../api/products';
 import { inventoriesApi } from '../api/inventories';
 import { stockApi } from '../api/stock';
@@ -17,6 +17,7 @@ export default function StockPage() {
   const [selectedInv, setSelectedInv] = useState<string | undefined>();
   const [selectedProd, setSelectedProd] = useState<string | undefined>();
   const [search, setSearch] = useState('');
+  const [scan, setScan] = useState('');
   const [orderBy, setOrderBy] = useState('stock.created_at');
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc');
   const [modalOpen, setModalOpen] = useState(false);
@@ -38,8 +39,30 @@ export default function StockPage() {
   });
   const stockList = stockRes?.data ?? [];
 
-  const productOptions = (products?.data ?? []).map((p) => ({ label: p.name, value: p.id }));
+  const productOptions = (products?.data ?? []).map((p) => ({ label: p.sku ? `${p.name} (${p.sku})` : p.name, value: p.id }));
   const inventoryOptions = (inventories?.data ?? []).map((i) => ({ label: i.name, value: i.id }));
+
+  // Barcode scanner support: a scanner types the code and presses Enter. The
+  // matching product is selected and the "Add stock" dialog opens pre-filled.
+  const scanMutation = useMutation({
+    mutationFn: (code: string) => productsApi.scan(code),
+    onSuccess: (product) => {
+      setScan('');
+      setSelectedProd(product.id);
+      if (hasPermission('stock.create')) {
+        setModalAction('add');
+        form.setFieldsValue({ inventory_id: selectedInv, product_id: product.id, quantity: 1 });
+        setModalOpen(true);
+      }
+      message.success(`Found ${product.name}`);
+    },
+    onError: (err: Error) => message.error(err.message || 'No product matches that code'),
+  });
+
+  const handleScan = () => {
+    const code = scan.trim();
+    if (code) scanMutation.mutate(code);
+  };
 
   const sortOptions = [
     { label: 'Product', value: 'products.name' },
@@ -140,13 +163,23 @@ export default function StockPage() {
       {/* Filters & Actions */}
       <Card>
         <Row gutter={[16, 16]} align="middle">
-          <Col xs={24} md={6}>
+          <Col xs={24} md={5}>
             <Input
-              placeholder="Search by product name..."
+              placeholder="Search by name, SKU or barcode..."
               prefix={<SearchOutlined />}
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               allowClear
+            />
+          </Col>
+          <Col xs={24} md={5}>
+            <Input
+              placeholder="Scan SKU / barcode, then Enter"
+              prefix={<BarcodeOutlined />}
+              value={scan}
+              disabled={scanMutation.isPending}
+              onChange={(e) => setScan(e.target.value)}
+              onPressEnter={handleScan}
             />
           </Col>
           <Col xs={12} md={4}>

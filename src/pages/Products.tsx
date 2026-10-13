@@ -1,14 +1,17 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
-  Table, Button, Modal, Form, Input, InputNumber, Space, Popconfirm, message, Card, Drawer, Image, Descriptions, Empty, Tag, Typography,
+  Table, Button, Modal, Form, Input, InputNumber, Space, Popconfirm, message, Card, Drawer, Image, Descriptions, Empty, Tag, Typography, Row, Col,
 } from 'antd';
-import { PlusOutlined, EditOutlined, DeleteOutlined, EyeOutlined } from '@ant-design/icons';
+import { PlusOutlined, EditOutlined, DeleteOutlined, EyeOutlined, SearchOutlined, BarcodeOutlined } from '@ant-design/icons';
 import { productsApi } from '../api/products';
+import type { ProductPayload } from '../api/products';
 import { useAuth } from '../contexts/AuthContext';
 import ProductImagesField from '../components/ProductImagesField';
 import TruncatedText from '../components/TruncatedText';
-import type { Product, ProductImageInput } from '../types';
+import type { Product } from '../types';
+
+const PAGE_SIZE = 20;
 
 export default function Products() {
   const queryClient = useQueryClient();
@@ -16,12 +19,42 @@ export default function Products() {
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState<Product | null>(null);
   const [viewing, setViewing] = useState<Product | null>(null);
+  const [searchInput, setSearchInput] = useState('');
+  const [search, setSearch] = useState('');
+  const [page, setPage] = useState(1);
+  const [scanInput, setScanInput] = useState('');
   const [form] = Form.useForm();
 
+  // Debounce the search box so typing does not fire a request per keystroke.
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setSearch(searchInput.trim());
+      setPage(1);
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [searchInput]);
+
   const { data, isLoading } = useQuery({
-    queryKey: ['products'],
-    queryFn: () => productsApi.list(),
+    queryKey: ['products', page, search],
+    queryFn: () => productsApi.list(page, PAGE_SIZE, search || undefined),
   });
+
+  // A barcode scanner behaves like a keyboard: it types the code and presses
+  // Enter. Looking the code up opens the matching product straight away.
+  const scanMutation = useMutation({
+    mutationFn: (code: string) => productsApi.scan(code),
+    onSuccess: (product) => {
+      setScanInput('');
+      setViewing(product);
+      message.success(`Found ${product.name}`);
+    },
+    onError: (err: Error) => message.error(err.message || 'No product matches that code'),
+  });
+
+  const handleScan = () => {
+    const code = scanInput.trim();
+    if (code) scanMutation.mutate(code);
+  };
 
   const createMutation = useMutation({
     mutationFn: productsApi.create,
@@ -35,7 +68,7 @@ export default function Products() {
   });
 
   const updateMutation = useMutation({
-    mutationFn: ({ id, ...data }: { id: string; name: string; description?: string; price?: number; low_stock_threshold?: number; images?: ProductImageInput[] }) =>
+    mutationFn: ({ id, ...data }: { id: string } & ProductPayload) =>
       productsApi.update(id, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['products'] });
@@ -107,6 +140,22 @@ export default function Products() {
       ),
     },
     { title: 'Description', dataIndex: 'description', key: 'description', ellipsis: true },
+    {
+      title: 'SKU',
+      dataIndex: 'sku',
+      key: 'sku',
+      width: 140,
+      render: (sku?: string) =>
+        sku ? <Typography.Text code>{sku}</Typography.Text> : <Typography.Text type="secondary">—</Typography.Text>,
+    },
+    {
+      title: 'Barcode',
+      dataIndex: 'barcode',
+      key: 'barcode',
+      width: 160,
+      render: (barcode?: string) =>
+        barcode || <Typography.Text type="secondary">—</Typography.Text>,
+    },
     { title: 'Price', dataIndex: 'price', key: 'price', render: (v: number) => `$${v.toFixed(2)}` },
     {
       title: 'Low stock at',
@@ -143,12 +192,37 @@ export default function Products() {
           <Button type="primary" icon={<PlusOutlined />} onClick={openCreate}>Add Product</Button>
         )}
       >
+        <Space style={{ marginBottom: 16 }} wrap>
+          <Input
+            allowClear
+            prefix={<SearchOutlined />}
+            placeholder="Search by name, SKU or barcode"
+            style={{ width: 280 }}
+            value={searchInput}
+            onChange={(e) => setSearchInput(e.target.value)}
+          />
+          <Input
+            prefix={<BarcodeOutlined />}
+            placeholder="Scan SKU / barcode, then press Enter"
+            style={{ width: 300 }}
+            value={scanInput}
+            disabled={scanMutation.isPending}
+            onChange={(e) => setScanInput(e.target.value)}
+            onPressEnter={handleScan}
+          />
+        </Space>
         <Table
           dataSource={data?.data ?? []}
           columns={columns}
           rowKey="id"
           loading={isLoading}
-          pagination={{ pageSize: 20, total: data?.total ?? 0 }}
+          scroll={{ x: 'max-content' }}
+          pagination={{
+            current: page,
+            pageSize: PAGE_SIZE,
+            total: data?.total ?? 0,
+            onChange: (nextPage) => setPage(nextPage),
+          }}
         />
       </Card>
 
@@ -163,6 +237,31 @@ export default function Products() {
           <Form.Item name="name" label="Name" rules={[{ required: true, message: 'Name is required' }]}>
             <Input />
           </Form.Item>
+          <Row gutter={16}>
+            <Col span={12}>
+              <Form.Item
+                name="sku"
+                label="SKU"
+                tooltip="Stock keeping unit. Must be unique within your company."
+                rules={[
+                  { required: true, message: 'SKU is required' },
+                  { max: 64, message: 'SKU must be 64 characters or less' },
+                ]}
+              >
+                <Input placeholder="e.g. MOU-001" />
+              </Form.Item>
+            </Col>
+            <Col span={12}>
+              <Form.Item
+                name="barcode"
+                label="Barcode"
+                tooltip="Optional EAN/UPC code. Must be unique within your company when set."
+                rules={[{ max: 64, message: 'Barcode must be 64 characters or less' }]}
+              >
+                <Input placeholder="e.g. 6221234567890" />
+              </Form.Item>
+            </Col>
+          </Row>
           <Form.Item name="description" label="Description">
             <Input.TextArea rows={3} />
           </Form.Item>
@@ -221,6 +320,10 @@ export default function Products() {
             )}
             <Descriptions column={1} bordered size="small">
               <Descriptions.Item label="Name">{viewing.name}</Descriptions.Item>
+              <Descriptions.Item label="SKU">
+                {viewing.sku ? <Typography.Text code>{viewing.sku}</Typography.Text> : '—'}
+              </Descriptions.Item>
+              <Descriptions.Item label="Barcode">{viewing.barcode || '—'}</Descriptions.Item>
               <Descriptions.Item label="Description">{viewing.description || '—'}</Descriptions.Item>
               <Descriptions.Item label="Price">${viewing.price.toFixed(2)}</Descriptions.Item>
               <Descriptions.Item label="Low stock threshold">
