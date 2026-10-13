@@ -1,3 +1,8 @@
+// antd v5 renders its static APIs (message/notification/Modal.confirm) through
+// `react-dom`'s legacy render, which React 19 removed. Without this side-effect
+// import those calls silently render nothing — no toasts, no confirm dialogs.
+// It must run before any antd modal/message is opened, so keep it first.
+import '@ant-design/v5-patch-for-react-19';
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import { BrowserRouter } from 'react-router-dom';
