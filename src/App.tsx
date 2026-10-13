@@ -1,4 +1,5 @@
 import { Routes, Route, Navigate } from 'react-router-dom';
+import { Spin } from 'antd';
 import { useAuth } from './contexts/AuthContext';
 import { usePlatformAuth } from './contexts/PlatformAuthContext';
 import AppLayout from './components/Layout';
@@ -17,12 +18,26 @@ import Users from './pages/Users';
 import Roles from './pages/Roles';
 import Permissions from './pages/Permissions';
 
+/** Full-page spinner shown while the session claims are being revalidated. */
+function LoadingScreen() {
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100vh' }}>
+      <Spin size="large" />
+    </div>
+  );
+}
+
 function ProtectedLayout({ children }: { children: React.ReactNode }) {
-  const { isAuthenticated, companyStatus } = useAuth();
+  const { isAuthenticated, companyStatus, claimsReady } = useAuth();
   if (!isAuthenticated) return <Navigate to="/login" replace />;
-  // Companies that are not approved (pending/rejected/suspended) only see the
-  // "awaiting approval" screen, regardless of what they try to reach.
-  if (companyStatus && companyStatus !== 'approved') return <AwaitingApproval />;
+  // A token in localStorage proves nothing about the company's approval state, so
+  // hold the shell back until /auth/me answers. Without this, opening the app in a
+  // fresh tab rendered the entire layout (products, inventories, stock…) for a
+  // company that was never approved.
+  if (!claimsReady) return <LoadingScreen />;
+  // Anything other than an explicit "approved" — pending, rejected, suspended or an
+  // unknown status — keeps the user on the gate.
+  if (companyStatus !== 'approved') return <AwaitingApproval />;
   return <AppLayout>{children}</AppLayout>;
 }
 

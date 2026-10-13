@@ -24,9 +24,18 @@ interface AuthContextType {
   isRoot: boolean;
   permissions: string[];
   hasPermission: (code: string) => boolean;
+  /**
+   * False until the server-verified claims behind the stored token have been
+   * loaded. The company approval gate must never be evaluated before then.
+   */
+  claimsReady: boolean;
   /** Re-fetches session claims (e.g. to pick up a company approval). */
   refreshClaims: () => Promise<void>;
-  login: (data: LoginRequest) => Promise<void>;
+  /**
+   * Signs in and returns the fresh claims (or null when they could not be read),
+   * so callers can tell an approved sign-in from an "awaiting approval" one.
+   */
+  login: (data: LoginRequest) => Promise<ClaimsResponse | null>;
   register: (data: RegisterRequest) => Promise<void>;
   /** Revokes the session in Redis (best effort) and clears local state. */
   logout: () => Promise<void>;
@@ -49,6 +58,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [companyName, setCompanyName] = useState<string | null>(null);
   const [companyStatus, setCompanyStatus] = useState<string | null>(null);
   const [isRoot, setIsRoot] = useState(false);
+  // These claims are deliberately NOT hydrated from localStorage. Only the
+  // permission codes are cached (to render the menu instantly), while the
+  // company's approval status is re-read from the server on every page load —
+  // a tab opened tomorrow must not inherit yesterday's verdict.
+  const [claimsReady, setClaimsReady] = useState(false);
 
   /** Drops the local session. The API client has already revoked the tokens. */
   const clearAuth = useCallback(() => {
@@ -59,6 +73,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setCompanyName(null);
     setCompanyStatus(null);
     setIsRoot(false);
+    setClaimsReady(true);
   }, []);
 
   /** Applies fresh session claims to local state. */
@@ -70,16 +85,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     localStorage.setItem(PERMS_KEY, JSON.stringify(claims.permissions));
   }, []);
 
-  // On mount, if we have a token but no permissions, fetch claims
+  // A stored token is only a hint that we *might* have a session. Permissions and
+  // — critically — the company's approval status live server-side and may have
+  // changed since this browser last talked to the API, so re-read them on every
+  // mount before the user is let into the app. The old code only fetched when the
+  // cached permission list was empty, which meant a brand new tab skipped the
+  // check entirely and rendered the app shell for an unapproved company.
   useEffect(() => {
-    if (token && permissions.length === 0) {
-      authApi.me()
-        .then(applyClaims)
-        .catch(() => {
-          // Token invalid and could not be refreshed — clear the local session.
-          clearAuth();
-        });
+    if (!token) {
+      setClaimsReady(true);
+      return;
     }
+
+    authApi.me()
+      .then(applyClaims)
+      .catch(() => {
+        // Token invalid and could not be refreshed — clear the local session.
+        clearAuth();
+      })
+      .finally(() => setClaimsReady(true));
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const login = useCallback(async (data: LoginRequest) => {
@@ -88,13 +112,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setToken(res.token);
     setUser(res.user);
 
-    // Fetch claims after login
+    // The login response carries no company status, so read the claims. A failure
+    // here is not fatal: the gate treats unknown claims as "not approved".
+    let claims: ClaimsResponse | null = null;
     try {
-      const claims = await authApi.me();
+      claims = await authApi.me();
       applyClaims(claims);
     } catch {
-      // Non-critical — permissions will be empty
+      // Permissions stay empty; the caller will not report a successful sign-in.
     }
+    setClaimsReady(true);
+
+    return claims;
   }, [applyClaims]);
 
   const register = useCallback(async (data: RegisterRequest) => {
@@ -141,7 +170,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [applyClaims]);
 
   return (
-    <AuthContext.Provider value={{ user, token, isAuthenticated: !!token, companyName, companyStatus, isRoot, permissions, hasPermission, refreshClaims, login, register, logout }}>
+    <AuthContext.Provider value={{ user, token, isAuthenticated: !!token, companyName, companyStatus, isRoot, permissions, hasPermission, claimsReady, refreshClaims, login, register, logout }}>
       {children}
     </AuthContext.Provider>
   );

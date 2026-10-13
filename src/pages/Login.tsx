@@ -19,8 +19,11 @@ export default function Login() {
   const handleLogin = async (values: { email: string; password: string }) => {
     setLoading(true);
     try {
-      await login(values);
-      message.success('Login successful');
+      const claims = await login(values);
+      // Only celebrate a sign-in that actually unlocks the app. A pending company
+      // gets no "signed in" signal — it lands straight on the awaiting-approval
+      // gate, which is the whole point of that screen.
+      if (claims?.company_status === 'approved') message.success('Login successful');
       navigate('/', { replace: true });
     } catch (err) {
       message.error((err as Error).message || 'Login failed');
