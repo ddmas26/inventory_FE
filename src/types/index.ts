@@ -246,9 +246,97 @@ export interface PlatformLoginResponse {
   user: PlatformUserResponse;
 }
 
+// --- Company profile (tenant-owned, platform-approved) ---
+
+export interface CompanyProfile {
+  legal_name: string;
+  email: string;
+  phone: string;
+  website: string;
+  address: string;
+  city: string;
+  country: string;
+  tax_id: string;
+  logo_url: string;
+  description: string;
+  updated_at?: string;
+}
+
+export type ProfileRequestStatus = 'pending' | 'approved' | 'rejected';
+
+/** A staged profile change (pending, approved or rejected). */
+export interface CompanyProfileRequestDto {
+  id: string;
+  company_id: string;
+  company_name?: string;
+  requested_by?: string;
+  requested_by_name?: string;
+  profile: CompanyProfile;
+  status: ProfileRequestStatus;
+  reason: string;
+  reviewed_by?: string;
+  reviewed_at?: string;
+  created_at: string;
+  updated_at: string;
+}
+
+/** Tenant overview: company identity + live profile + pending request (if any). */
+export interface CompanyProfileResponse {
+  company_id: string;
+  name: string;
+  slug: string;
+  status: CompanyStatus;
+  profile: CompanyProfile;
+  pending?: CompanyProfileRequestDto;
+}
+
+export interface UpdateCompanyProfileRequest {
+  legal_name: string;
+  email: string;
+  phone: string;
+  website: string;
+  address: string;
+  city: string;
+  country: string;
+  tax_id: string;
+  logo_url: string;
+  description: string;
+}
+
+/** A request plus the company's live profile, for reviewer diffing. */
+export interface CompanyProfileRequestDetail {
+  request: CompanyProfileRequestDto;
+  current: CompanyProfile;
+}
+
 export interface CreateRoleRequest {
   name: string;
   description: string;
+}
+
+// --- Audit log ---
+
+export type AuditActorType = 'user' | 'platform' | 'system';
+
+/** One immutable audit-trail entry (who did what, to which entity, when). */
+export interface AuditLogEntry {
+  id: string;
+  company_id?: string;
+  company_name?: string;
+  actor_type: AuditActorType;
+  actor_id?: string;
+  actor_name: string;
+  action: string;
+  entity_type: string;
+  entity_id: string;
+  /** JSON blobs are embedded as structured values, not strings. */
+  old_values?: unknown;
+  new_values?: unknown;
+  metadata?: unknown;
+  ip?: string;
+  user_agent?: string;
+  request_id?: string;
+  created_at: string;
 }
 
 export interface CreatePermissionRequest {

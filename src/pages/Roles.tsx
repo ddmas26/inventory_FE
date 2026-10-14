@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   Table, Button, Modal, Form, Input, Space, Popconfirm, message,
-  Card, Tag, Typography, Popover, Badge, Divider,
+  Card, Tag, Typography, Popover, Badge, Divider, Checkbox,
 } from 'antd';
 import {
   PlusOutlined, EditOutlined, DeleteOutlined, LinkOutlined,
@@ -57,6 +57,9 @@ export default function Roles() {
   const [roleModal, setRoleModal] = useState(false);
   const [editing, setEditing] = useState<RoleWithPermissionsResponse | null>(null);
   const [selectedRole, setSelectedRole] = useState<RoleWithPermissionsResponse | null>(null);
+  // Staged permission selection for the "edit all, then save" flow. Nothing is
+  // persisted until the user presses Save.
+  const [selectedPermIds, setSelectedPermIds] = useState<string[]>([]);
   const [roleForm] = Form.useForm();
 
   const { data: roles, isLoading } = useQuery({
@@ -102,27 +105,22 @@ export default function Roles() {
     onError: (err: Error) => message.error(err.message),
   });
 
-  const addPermMutation = useMutation({
-    mutationFn: ({ roleId, permId }: { roleId: string; permId: string }) =>
-      rolesApi.addPermission(roleId, permId),
+  const setPermissionsMutation = useMutation({
+    mutationFn: ({ roleId, permissionIds }: { roleId: string; permissionIds: string[] }) =>
+      rolesApi.setPermissions(roleId, permissionIds),
     onSuccess: (updatedRole) => {
       queryClient.invalidateQueries({ queryKey: ['roles'] });
       setSelectedRole(updatedRole);
-      message.success('Permission added to role');
+      setSelectedPermIds(updatedRole.permissions.map((p) => p.id));
+      message.success('Role permissions updated');
     },
     onError: (err: Error) => message.error(err.message),
   });
 
-  const removePermMutation = useMutation({
-    mutationFn: ({ roleId, permId }: { roleId: string; permId: string }) =>
-      rolesApi.removePermission(roleId, permId),
-    onSuccess: (updatedRole) => {
-      queryClient.invalidateQueries({ queryKey: ['roles'] });
-      setSelectedRole(updatedRole);
-      message.success('Permission removed from role');
-    },
-    onError: (err: Error) => message.error(err.message),
-  });
+  const openPermissions = (role: RoleWithPermissionsResponse) => {
+    setSelectedRole(role);
+    setSelectedPermIds(role.permissions.map((p) => p.id));
+  };
 
   const openCreate = () => {
     setEditing(null);
@@ -174,16 +172,7 @@ export default function Roles() {
               <Divider style={{ margin: '8px 0' }} />
               <Space wrap size={4}>
                 {allActions.map((a) => (
-                  <Tag
-                    key={a.id}
-                    color={color}
-                    style={{ margin: 0, cursor: 'pointer' }}
-                    closable
-                    onClose={(e) => {
-                      e.preventDefault();
-                      removePermMutation.mutate({ roleId: record.id, permId: a.id });
-                    }}
-                  >
+                  <Tag key={a.id} color={color} style={{ margin: 0 }}>
                     {a.action}
                   </Tag>
                 ))}
@@ -258,8 +247,8 @@ export default function Roles() {
           <Button
             icon={<LinkOutlined />}
             size="small"
-            onClick={() => setSelectedRole(record)}
-            title="Add Permission"
+            onClick={() => openPermissions(record)}
+            title="Edit Permissions"
           />
           <Button icon={<EditOutlined />} size="small" onClick={() => openEdit(record)} />
           <Popconfirm title="Delete this role?" onConfirm={() => deleteMutation.mutate(record.id)}>
@@ -304,58 +293,78 @@ export default function Roles() {
         </Form>
       </Modal>
 
-      {/* Add Permission to Role Modal */}
+      {/* Edit Role Permissions Modal — stage all changes, then save once */}
       <Modal
         title={`Permissions for "${selectedRole?.name ?? ''}"`}
         open={!!selectedRole}
         onCancel={() => setSelectedRole(null)}
-        footer={null}
-        width={520}
+        width={560}
+        okText="Save"
+        confirmLoading={setPermissionsMutation.isPending}
+        onOk={() => {
+          if (selectedRole) {
+            setPermissionsMutation.mutate({ roleId: selectedRole.id, permissionIds: selectedPermIds });
+          }
+        }}
+        afterClose={() => setSelectedPermIds([])}
       >
         {selectedRole && (
           <Space direction="vertical" style={{ width: '100%' }} size="middle">
             {allPermissions && allPermissions.length > 0 ? (
-              <Space direction="vertical" style={{ width: '100%' }} size="small">
+              <>
+                <Space>
+                  <Button size="small" onClick={() => setSelectedPermIds(allPermissions.map((p) => p.id))}>
+                    Select all
+                  </Button>
+                  <Button size="small" onClick={() => setSelectedPermIds([])}>
+                    Clear
+                  </Button>
+                  <Typography.Text type="secondary">{selectedPermIds.length} selected</Typography.Text>
+                </Space>
                 {Object.entries(groupByModule(allPermissions)).sort().map(([mod, perms]) => {
-                  const assignedIds = new Set(selectedRole.permissions.map((p) => p.id));
+                  const modIds = perms.map((p) => p.id);
+                  const allSelected = modIds.every((id) => selectedPermIds.includes(id));
+                  const someSelected = modIds.some((id) => selectedPermIds.includes(id));
                   const color = moduleColors[mod] ?? 'default';
                   return (
                     <div key={mod}>
-                      <Typography.Text
-                        strong
-                        style={{ fontSize: 12, textTransform: 'uppercase', color: '#666', display: 'block', marginBottom: 4 }}
-                      >
-                        {capitalize(mod)}
-                      </Typography.Text>
-                      <Space wrap size={4}>
-                        {perms.map((p) => {
-                          const isAssigned = assignedIds.has(p.id);
-                          return (
-                            <Tag
-                              key={p.id}
-                              color={color}
-                              style={{
-                                cursor: 'pointer',
-                                opacity: isAssigned ? 0.55 : 1,
-                                padding: '2px 10px',
-                              }}
-                              onClick={() => {
-                                if (isAssigned) {
-                                  removePermMutation.mutate({ roleId: selectedRole.id, permId: p.id });
-                                } else {
-                                  addPermMutation.mutate({ roleId: selectedRole.id, permId: p.id });
-                                }
-                              }}
-                            >
-                              {actionFromCode(p.code)}
-                            </Tag>
-                          );
-                        })}
+                      <Space align="center" style={{ marginBottom: 6 }}>
+                        <Tag color={color} style={{ margin: 0, fontWeight: 500 }}>
+                          {capitalize(mod)}
+                        </Tag>
+                        <Checkbox
+                          checked={allSelected}
+                          indeterminate={!allSelected && someSelected}
+                          onChange={(e) =>
+                            setSelectedPermIds((prev) =>
+                              e.target.checked
+                                ? Array.from(new Set([...prev, ...modIds]))
+                                : prev.filter((id) => !modIds.includes(id)),
+                            )
+                          }
+                        >
+                          <Typography.Text type="secondary" style={{ fontSize: 12 }}>all</Typography.Text>
+                        </Checkbox>
+                      </Space>
+                      <Space wrap size={16} style={{ paddingLeft: 4 }}>
+                        {perms.map((p) => (
+                          <Checkbox
+                            key={p.id}
+                            checked={selectedPermIds.includes(p.id)}
+                            onChange={(e) =>
+                              setSelectedPermIds((prev) =>
+                                e.target.checked ? [...prev, p.id] : prev.filter((id) => id !== p.id),
+                              )
+                            }
+                          >
+                            {actionFromCode(p.code)}
+                          </Checkbox>
+                        ))}
                       </Space>
                     </div>
                   );
                 })}
-              </Space>
+              </>
             ) : (
               <Typography.Text type="secondary">No permissions available.</Typography.Text>
             )}

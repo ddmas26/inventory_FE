@@ -22,4 +22,8 @@ export const rolesApi = {
 
   removePermission: (roleId: string, permissionId: string) =>
     del<RoleWithPermissionsResponse>(`/roles/${roleId}/permissions/${permissionId}`),
+
+  /** Replace the role's entire permission set in one call. */
+  setPermissions: (roleId: string, permissionIds: string[]) =>
+    put<RoleWithPermissionsResponse>(`/roles/${roleId}/permissions`, { permission_ids: permissionIds }),
 };

@@ -11,6 +11,8 @@ import {
   SafetyOutlined,
   KeyOutlined,
   LogoutOutlined,
+  BankOutlined,
+  FileSearchOutlined,
 } from '@ant-design/icons';
 import { useAuth } from '../contexts/AuthContext';
 
@@ -26,9 +28,11 @@ const allMainItems: MenuItem[] = [
 ];
 
 const allAdminItems: MenuItem[] = [
+  { key: '/company-profile', icon: <BankOutlined />, label: 'Company Profile', perm: 'company.read' },
   { key: '/users', icon: <TeamOutlined />, label: 'Users', perm: 'users.read' },
   { key: '/roles', icon: <SafetyOutlined />, label: 'Roles', perm: 'roles.read' },
   { key: '/permissions', icon: <KeyOutlined />, label: 'Permissions', perm: 'permissions.read' },
+  { key: '/activity', icon: <FileSearchOutlined />, label: 'Activity', perm: 'audit.read' },
 ];
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {

@@ -10,6 +10,8 @@ import Register from './pages/Register';
 import PlatformLogin from './pages/PlatformLogin';
 import PlatformDashboard from './pages/PlatformDashboard';
 import PlatformCompanies from './pages/PlatformCompanies';
+import PlatformProfileRequests from './pages/PlatformProfileRequests';
+import PlatformAuditLogs from './pages/PlatformAuditLogs';
 import Dashboard from './pages/Dashboard';
 import Products from './pages/Products';
 import Inventories from './pages/Inventories';
@@ -17,6 +19,8 @@ import StockPage from './pages/Stock';
 import Users from './pages/Users';
 import Roles from './pages/Roles';
 import Permissions from './pages/Permissions';
+import CompanyProfilePage from './pages/CompanyProfile';
+import Activity from './pages/Activity';
 
 /** Full-page spinner shown while the session claims are being revalidated. */
 function LoadingScreen() {
@@ -57,6 +61,8 @@ export default function App() {
       <Route path="/platform/login" element={<PlatformLogin />} />
       <Route path="/platform" element={<PlatformProtected><PlatformDashboard /></PlatformProtected>} />
       <Route path="/platform/companies" element={<PlatformProtected><PlatformCompanies /></PlatformProtected>} />
+      <Route path="/platform/profile-requests" element={<PlatformProtected><PlatformProfileRequests /></PlatformProtected>} />
+      <Route path="/platform/audit-logs" element={<PlatformProtected><PlatformAuditLogs /></PlatformProtected>} />
 
       {/* Company (tenant) area */}
       <Route path="/" element={<ProtectedLayout><Dashboard /></ProtectedLayout>} />
@@ -66,6 +72,8 @@ export default function App() {
       <Route path="/users" element={<ProtectedLayout><Users /></ProtectedLayout>} />
       <Route path="/roles" element={<ProtectedLayout><Roles /></ProtectedLayout>} />
       <Route path="/permissions" element={<ProtectedLayout><Permissions /></ProtectedLayout>} />
+      <Route path="/company-profile" element={<ProtectedLayout><CompanyProfilePage /></ProtectedLayout>} />
+      <Route path="/activity" element={<ProtectedLayout><Activity /></ProtectedLayout>} />
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );

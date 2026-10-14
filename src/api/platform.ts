@@ -5,6 +5,10 @@ import type {
   PlatformLoginResponse,
   PlatformUserResponse,
   CompanyStatus,
+  CompanyProfileRequestDto,
+  CompanyProfileRequestDetail,
+  ProfileRequestStatus,
+  AuditLogEntry,
 } from '../types';
 
 const BASE_URL = '/api';
@@ -94,4 +98,39 @@ export const platformApi = {
 
   suspend: (id: string) =>
     request<{ id: string; status: CompanyStatus }>(`/platform/companies/${id}/suspend`, { method: 'PATCH' }),
+
+  profileRequests: (params?: { status?: ProfileRequestStatus | ''; page_index?: number; page_size?: number }) =>
+    request<PaginatedResponse<CompanyProfileRequestDto>>(
+      withParams('/platform/profile-requests', {
+        status: params?.status,
+        page_index: params?.page_index?.toString(),
+        page_size: params?.page_size?.toString(),
+      }),
+    ),
+
+  profileRequest: (id: string) =>
+    request<CompanyProfileRequestDetail>(`/platform/profile-requests/${id}`),
+
+  approveProfileRequest: (id: string) =>
+    request<CompanyProfileRequestDetail>(`/platform/profile-requests/${id}/approve`, { method: 'PATCH' }),
+
+  rejectProfileRequest: (id: string, reason: string) =>
+    request<CompanyProfileRequestDetail>(`/platform/profile-requests/${id}/reject`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ reason }),
+    }),
+
+  auditLogs: (params?: { company_id?: string; search?: string; actor_type?: string; action?: string; entity_type?: string; page_index?: number; page_size?: number }) =>
+    request<PaginatedResponse<AuditLogEntry>>(
+      withParams('/platform/audit-logs', {
+        company_id: params?.company_id,
+        search: params?.search,
+        actor_type: params?.actor_type,
+        action: params?.action,
+        entity_type: params?.entity_type,
+        page_index: params?.page_index?.toString(),
+        page_size: params?.page_size?.toString(),
+      }),
+    ),
 };

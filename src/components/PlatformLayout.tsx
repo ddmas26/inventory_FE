@@ -1,5 +1,5 @@
 import { Layout, Menu, Typography, Button, Space, Tag } from 'antd';
-import { DashboardOutlined, BankOutlined, LogoutOutlined } from '@ant-design/icons';
+import { DashboardOutlined, BankOutlined, LogoutOutlined, ProfileOutlined, FileSearchOutlined } from '@ant-design/icons';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { usePlatformAuth } from '../contexts/PlatformAuthContext';
 
@@ -25,6 +25,8 @@ export default function PlatformLayout({ children }: { children: React.ReactNode
           items={[
             { key: '/platform', icon: <DashboardOutlined />, label: 'Dashboard' },
             { key: '/platform/companies', icon: <BankOutlined />, label: 'Companies' },
+            { key: '/platform/profile-requests', icon: <ProfileOutlined />, label: 'Profile Requests' },
+            { key: '/platform/audit-logs', icon: <FileSearchOutlined />, label: 'Audit Log' },
           ]}
           onClick={({ key }) => navigate(key)}
         />
